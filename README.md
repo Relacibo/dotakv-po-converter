@@ -10,13 +10,13 @@ This converter written in python converts localization files in the kv-format of
 
 ### Converting from dota-kv to pot
 
-#### Console command
+Console command:
 
 ```bash
 python3 kv2po.py <SOURCE-DIRECTORY> <DESTINATION-FILE>
 ```
 
-#### Example
+Example:
 
 ```bash
 python3 kv2po.py /path/to/dotaAddon/game/resource/English ./templates.pot
@@ -24,11 +24,13 @@ python3 kv2po.py /path/to/dotaAddon/game/resource/English ./templates.pot
 
 ### Converting from po to dota-kv
 
+Console command:
+
 ```bash
 python3 po2kv.py <SOURCE-FILE> <DESTINATION-DIRECTORY>
 ```
 
-#### Example
+Example:
 
 ```bash
 python3 po2kv.py ./de.po /path/to/dotaAddon/game/resource/German
