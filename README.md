@@ -12,7 +12,7 @@ This converter written in python converts localization files in the kv-format of
 
 Console command:
 
-```bash
+```
 usage: kv2po.py [-h] [-o] [-O] [-e INPUT_EXTENSION [INPUT_EXTENSION ...]]
                 [-E OUTPUT_EXTENSION]
                 SOURCE DESTINATION
@@ -38,7 +38,7 @@ optional arguments:
 
 Examples:
 
-```bash
+```
 python3 kv2po.py /path/to/dotaAddon/game/resource/English .
 python3 kv2po.py -O /path/to/dotaAddon/game/resource/English ./templates.pot
 python3 kv2po.py -oO /path/to/dotaAddon/game/resource/en.txt ./en.pot
@@ -48,7 +48,7 @@ python3 kv2po.py -oO /path/to/dotaAddon/game/resource/en.txt ./en.pot
 
 Console command:
 
-```bash
+```
 usage: po2kv.py [-h] [-o] [-O] [-e INPUT_EXTENSION [INPUT_EXTENSION ...]]
                 [-E OUTPUT_EXTENSION]
                 SOURCE DESTINATION
@@ -75,7 +75,7 @@ optional arguments:
 
 Examples:
 
-```bash
+```
 python3 po2kv.py . /path/to/dotaAddon/game/resource/German
 python3 po2kv.py -o ./de.po /path/to/dotaAddon/game/resource/German
 python3 po2kv.py -oO ./de.po /path/to/dotaAddon/game/resource/de.txt
