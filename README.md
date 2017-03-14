@@ -1,4 +1,4 @@
-#### kv-po-converter
+# kv-po-converter
 
 This converter written in python converts localization files in the kv-format of dota from/to the gettext format used in translation software.
 
