@@ -6,11 +6,9 @@ import os
 import re
 import shutil
 import datetime
+import argparse
+import kvutil
 
-NUM_OF_ARGUMENTS = 3
-INPUT_EXTENSIONS = [".txt"]
-#OUTPUT_EXTENSION = ".pot"
-#FILE_sourceFileBasename = "templates"
 KV_PATTERN = re.compile("^[\s\t]*\"([^\"]*)\"[\s\t]*\"([^\"]*)\"")
 COMMENT_PATTERN = re.compile("^[\s\t]*//")
 LINE_EMPTY_PATTERN = re.compile("^[\s\t\n]*$")
@@ -19,10 +17,14 @@ ONLY_VALUE_PATTERN = re.compile("^[\s\t]*\"([^\"]*)\"[\s\t]*$")
 VERSION = 1
 BUG_ADDRESS = "https://github.com/AngelArenaAllstars/suggestions/issues"
 LANGUAGE = "en"
-HEADER_END = "################### HEADER END ###################"
+HEADLINE = "Translation of Open Angel Arena"
+
+HEADER_END = kvutil.HEADER_END
+
+error_counter = 0
 
 def printHeader(output):
-    output.write("# Translation of Open Angel Arena\n")
+    output.write("# {}\n".format(HEADLINE))
     output.write("#, fuzzy\n")
     output.write("msgid \"\"\n")
     output.write("msgstr \"\"\n")
@@ -38,13 +40,79 @@ def printHeader(output):
     output.write("\"Content-Type: text/plain; charset=UTF-8\\n\"\n")
     output.write("\"Content-Transfer-Encoding: 8bit\\n\"\n")
     output.write("{}\n\n".format(HEADER_END))
+    
+def convertStreamToStream(kvInputStream, poOutputStream, inputFileName, uniqueIds):
+    global error_counter
+    for i, line in enumerate(kvInputStream):            # Iterate over lines
+        if COMMENT_PATTERN.match(line):   # Ignore Comment
+            # poOutputStream.write( "# {}".format(line))
+            pass
+        elif LINE_EMPTY_PATTERN.match(line) or line == "":
+            poOutputStream.write(line)
+        else:
+            kvPair = KV_PATTERN.match(line)
+            if kvPair:              # kv-pair
+                key = kvPair.group(1)
+                value = kvPair.group(2)
+                
+                if key not in uniqueIds:
+                    uniqueIds.add(key)
+                    poOutputStream.write("#: {}\n".format(inputFileName))
+                    poOutputStream.write("msgctxt \"{}\"\n".format(key))
+                    poOutputStream.write("msgid \"{}\"\n".format(value))
+                    poOutputStream.write("msgstr \"\"\n\n")
+                else:
+                    print ("[DUPLICATE] {0}[{1}]\n{2}".format(inputFileName, i, line))
+                    error_counter += 1
+            elif ONLY_VALUE_PATTERN.match(line):
+                print ("[ONLY_KEY] {0}[{1}]\n{2}".format(inputFileName, i, line))
+                error_counter += 1
+            else:
+                print ("[MATCH_ERROR] {0}[{1}]\n{2}".format(inputFileName, i, line))
+                error_counter += 1         
+                
+argparser = argparse.ArgumentParser(description='Convert from kv-format to po-format.')
+argparser.add_argument('source', metavar='SOURCE', type=str, help='if --one_file_in is set, then source file, otherwise source directory.')
+argparser.add_argument('destination', metavar='DESTINATION', type=str, help='if --one_file_out is set, then destination file, otherwise destination directory.')
+argparser.add_argument('-o', '--one_file_in', dest='oneFileIn', action='store_true', help='Should the files be processed from a single file? ')
+argparser.add_argument('-O', '--one_file_out', dest='oneFileOut', action='store_true', help='Should the files be processed into a single file? ')
+argparser.add_argument('-e', '--input_extensions', metavar='INPUT_EXTENSION', dest='inputExtensions', type=str, default=['.txt'], nargs='+', help='one or more file extensions for input file, for example \'.txt\'.')
+argparser.add_argument('-E', '--output_extension', metavar='OUTPUT_EXTENSION', dest='outputExtension', type=str, default='.pot', help='file extension for output file, for example \'.pot\'.')
 
-if len(sys.argv) < NUM_OF_ARGUMENTS:
-    raise Exception('The number of arguments has to be {}!'.format(NUM_OF_ARGUMENTS))
+args = argparser.parse_args()
 
-sourceDirectory = sys.argv[1]
-destinationFile = sys.argv[2]
-destinationDirectory = os.path.dirname(destinationFile)
+source = args.source
+destination = args.destination
+oneFileIn = args.oneFileIn
+oneFileOut = args.oneFileOut
+inputExtensions = args.inputExtensions
+outputExtension = args.outputExtension
+
+if oneFileIn:
+    sourceFile = source
+    if not os.path.isfile(sourceFile):
+        raise Exception('The source-file {} doesn\'t exist!'.format(sourceFile))
+    sourceDirectory = os.path.dirname(sourceFile)
+    sourceFileBasename = os.path.basename(sourceFile)
+else:
+    def shouldFileBeProcessed( file ):
+        return os.path.isfile(file) and os.path.splitext(file)[1] in inputExtensions
+    sourceDirectory = source
+    sourceFiles = list(\
+    filter(lambda n: shouldFileBeProcessed( n ), \
+        map(lambda bn: os.path.join(sourceDirectory, bn), os.listdir(sourceDirectory))))
+    sourceFileBasenames = list(map(lambda n: os.path.basename(n), sourceFiles))
+
+if oneFileOut:
+    destinationFile = destination
+    destinationDirectory = os.path.dirname(destinationFile)
+    destinationBasename = os.path.basename(destinationFile)
+else:
+    if oneFileIn:
+        raise Exception("Can't process from one file into multiple files!")
+    destinationDirectory = destination
+    destinationFileBasenames = list(map(lambda bn: os.path.splitext(bn)[0] + outputExtension, sourceFileBasenames))
+    destinationFiles = list(map(lambda bn: os.path.join(destinationDirectory, bn), destinationFileBasenames))
 
 ids = set([])
 
@@ -56,39 +124,28 @@ if not os.path.isdir(sourceDirectory):
     #shutil.rmtree(destination)
 os.makedirs(destinationDirectory, exist_ok=True)
 
-destinationStream = open(destinationFile, 'w+')
-printHeader(destinationStream)
-for sourceFileBasename in os.listdir(sourceDirectory):
-    sourceFile = os.path.join(sourceDirectory, sourceFileBasename)
-    if os.path.isfile(sourceFile): # Iterate over each file
-        sourceFileBasenameSplit = os.path.splitext(sourceFileBasename)
-        if sourceFileBasenameSplit[1] in INPUT_EXTENSIONS:  # Only go further, if the extension is in INPUT_EXTENSIONS
-            with open(sourceFile) as sourceStream:
-                counter = 1
-                for line in sourceStream:                     # Iterate over lines
-                    if COMMENT_PATTERN.match(line):   # Ignore Comment
-                        # destinationStream.write( "# {}".format(line))
-                           pass
-                    elif LINE_EMPTY_PATTERN.match(line) or line == "":
-                        destinationStream.write(line)
-                    else:
-                        kvPair = KV_PATTERN.match(line)
-                        if kvPair:              # kv-pair
-                            key = kvPair.group(1)
-                            value = kvPair.group(2)
-                            
-                            if key not in ids:
-                                ids.add(key)
-                                destinationStream.write("#: {}\n".format(sourceFileBasename))
-                                destinationStream.write("msgctxt \"{}\"\n".format(key))
-                                destinationStream.write("msgid \"{}\"\n".format(value))
-                                destinationStream.write("msgstr \"\"\n\n")
-                            else:
-                                print ("[DUPLICATE] {0}[{1}]\n{2}".format(sourceFileBasename, counter, line))
-                        elif ONLY_VALUE_PATTERN.match(line):
-                            print ("[ONLY_VALUE] {0}[{1}]\n{2}".format(sourceFileBasename, counter, line))
-                        else:
-                            print ("[MATCH_ERROR] {0}[{1}]\n{2}".format(sourceFileBasename, counter, line))
-                    counter += 1
+if oneFileIn and oneFileOut:                    # file to file
+    with open(destinationFile, 'w+') as destinationStream:
+        printHeader(destinationStream)
+        with open(sourceFile) as sourceStream:
+            convertStreamToStream(sourceStream, destinationStream, sourceFileBasename, ids)
             # print("Wrote file {0} to {1}".format(fInput, fOutput))
-destinationStream.close()
+elif not oneFileIn and oneFileOut:              # directory to file
+    with open(destinationFile, 'w+') as destinationStream:
+        printHeader(destinationStream)
+        for sourceFile, sourceFileBasename in zip(sourceFiles, sourceFileBasenames):
+            with open(sourceFile) as sourceStream:
+                convertStreamToStream(sourceStream, destinationStream, sourceFileBasename, ids)
+                # print("Wrote file {0} to {1}".format(fInput, fOutput))
+elif not oneFileIn and not oneFileOut:          # directory to directory
+    for (sourceFile, sourceFileBasename, destinationFile, destinationFileBasename) in \
+        zip(sourceFiles, sourceFileBasenames, destinationFiles, destinationFileBasenames):
+        with open(destinationFile, 'w+') as destinationStream:
+            printHeader(destinationStream)
+            with open(sourceFile) as sourceStream:
+                convertStreamToStream(sourceStream, destinationStream, sourceFileBasename, ids)
+else:
+    # Not possible
+    pass
+print("Finished with {} errors!".format(error_counter))
+
